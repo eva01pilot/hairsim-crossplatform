@@ -6,6 +6,7 @@ export const setupWebGPU = async (canvas: HTMLCanvasElement) => {
   const adapter = await navigator.gpu?.requestAdapter({
     featureLevel: "compatibility",
   });
+
   const device = await adapter?.requestDevice();
   if (!device) return;
 
