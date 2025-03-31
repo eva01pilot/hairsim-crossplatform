@@ -1,10 +1,19 @@
 /// <reference types="@webgpu/types" />
 
-interface Pipeline {
+export interface Pipeline {
   setVertexBuffer(data: Float32Array): void;
   draw(): void;
 }
 
+export enum WebGLPrimitiveTypes {
+  POINTS = WebGLRenderingContext.POINTS,
+  LINES = WebGLRenderingContext.LINES,
+  LINE_LOOP = WebGLRenderingContext.LINE_LOOP,
+  LINE_STRIP = WebGLRenderingContext.LINE_STRIP,
+  TRIANGLES = WebGLRenderingContext.TRIANGLES,
+  TRIANGLE_STRIP = WebGLRenderingContext.TRIANGLE_STRIP,
+  TRIANGLE_FAN = WebGLRenderingContext.TRIANGLE_FAN,
+}
 export class WebGLPipeline implements Pipeline {
   private gl: WebGL2RenderingContext;
   private vertexBuffer: WebGLBuffer | null = null;
@@ -12,14 +21,17 @@ export class WebGLPipeline implements Pipeline {
   private positionLocation: number;
   private colorLocation: number;
   private numVertices: number;
+  private renderType: WebGLPrimitiveTypes;
   constructor(
     vert: string,
     frag: string,
     gl: WebGL2RenderingContext,
+    renderType: WebGLPrimitiveTypes,
     positionLocation: number,
     colorLocation: number,
   ) {
     this.gl = gl;
+    this.renderType = renderType;
 
     const vertexShader = this.compileShader(gl.VERTEX_SHADER, vert)!;
     const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, frag)!;
@@ -34,7 +46,7 @@ export class WebGLPipeline implements Pipeline {
   }
 
   setVertexBuffer(data: Float32Array): void {
-    this.numVertices = (data.byteLength / 7) * Float32Array.BYTES_PER_ELEMENT;
+    this.numVertices = data.byteLength * Float32Array.BYTES_PER_ELEMENT * 7;
     this.vertexBuffer = this.gl.createBuffer();
     this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
     this.gl.bufferData(this.gl.ARRAY_BUFFER, data, this.gl.STATIC_DRAW);
@@ -54,8 +66,8 @@ export class WebGLPipeline implements Pipeline {
       3,
       this.gl.FLOAT,
       false,
-      4 * (2 + 3),
-      0,
+      7 * 4, // stride: 7 * 4 bytes (3 position + 4 color)
+      0, // offset: 0 bytes for position
     );
 
     // Enable color attribute
@@ -65,10 +77,10 @@ export class WebGLPipeline implements Pipeline {
       4,
       this.gl.FLOAT,
       false,
-      4 * (2 + 3),
-      2 * 4,
+      7 * 4, // stride: 7 * 4 bytes
+      3 * 4, // offset: 3 * 4 bytes (skip position)
     );
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, this.numVertices);
+    this.gl.drawArrays(this.renderType, 0, this.numVertices);
   }
 
   private compileShader(type: number, source: string) {
@@ -150,7 +162,8 @@ export class WebGPUPipeline implements Pipeline {
     });
     new Float32Array(this.vertexBuffer.getMappedRange()).set(data);
     this.vertexBuffer.unmap();
-    this.numVertices = this.vertexBuffer.size / 28;
+    this.numVertices = data.length / 7;
+    console.log(this.numVertices);
   }
 
   draw() {
